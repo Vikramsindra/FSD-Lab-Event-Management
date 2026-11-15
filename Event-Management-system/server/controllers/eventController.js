@@ -1,150 +1,151 @@
-let events = [
-  {
-    id: 1,
-    title: "Tech Fest 2026",
-    description: "A technology event for students.",
-    date: "2026-11-15",
-    time: "10:00",
-    location: "Mumbai",
-  },
-  {
-    id: 2,
-    title: "React Workshop",
-    description: "Learn React from basics to advanced.",
-    date: "2026-11-20",
-    time: "14:00",
-    location: "Pune",
-  },
-  {
-    id: 3,
-    title: "AI Conference",
-    description: "Explore the latest AI developments.",
-    date: "2026-11-25",
-    time: "09:30",
-    location: "Bengaluru",
-  },
-];
+const mongoose = require("mongoose");
+const Event = require("../models/Event");
+const Registration = require("../models/Registration");
 
-// GET /api/events
-function getEvents(req, res) {
-  res.status(200).json(events);
-}
-
-// GET /api/events/:id
-function getEventById(req, res) {
-  const id = Number(req.params.id);
-
-  const event = events.find((event) => event.id === id);
-
-  if (!event) {
-    return res.status(404).json({
-      message: "Event not found",
-    });
+function validObjectId(id) { return mongoose.isValidObjectId(id); }
+function validateEventInput(body) {
+  const fields = ["title", "description", "date", "time", "location"];
+  for (const field of fields) {
+    if (typeof body[field] !== "string" || !body[field].trim()) return `${field} is required`;
   }
-
-  res.status(200).json(event);
+  if (body.title.trim().length > 150) return "Title must be 150 characters or fewer";
+  if (body.description.trim().length > 3000) return "Description must be 3000 characters or fewer";
+  if (body.location.trim().length > 200) return "Location must be 200 characters or fewer";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(body.date.trim()) || Number.isNaN(Date.parse(`${body.date.trim()}T00:00:00.000Z`))) return "Date must be a valid YYYY-MM-DD date";
+  const parsedDate = new Date(`${body.date.trim()}T00:00:00.000Z`);
+  if (parsedDate.toISOString().slice(0, 10) !== body.date.trim()) return "Date must be a valid YYYY-MM-DD date";
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(body.time.trim())) return "Time must use HH:MM format";
+  return null;
 }
-
-// POST /api/events
-function createEvent(req, res) {
-  const { title, description, date, time, location } = req.body;
-
-  if (
-    !title?.trim() ||
-    !description?.trim() ||
-    !date?.trim() ||
-    !time?.trim() ||
-    !location?.trim()
-  ) {
-    return res.status(400).json({
-      message: "All event fields are required",
-    });
-  }
-
-  const newEvent = {
-    id: events.length ? Math.max(...events.map((event) => event.id)) + 1 : 1,
-    title: title.trim(),
-    description: description.trim(),
-    date: date.trim(),
-    time: time.trim(),
-    location: location.trim(),
+function eventPayload(body) {
+  return {
+    title: body.title.trim(),
+    description: body.description.trim(),
+    date: new Date(`${body.date.trim()}T00:00:00.000Z`),
+    time: body.time.trim(),
+    location: body.location.trim(),
   };
+}
+function escapeRegex(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
-  events.push(newEvent);
+// GET /api/events?search=&location=&dateFrom=&dateTo=
+async function getEvents(req, res, next) {
+  try {
+    const { search = "", location = "", dateFrom = "", dateTo = "" } = req.query;
+    const filter = {};
+    if (typeof search === "string" && search.trim()) {
+      const pattern = new RegExp(escapeRegex(search.trim()), "i");
+      filter.$or = [{ title: pattern }, { description: pattern }];
+    }
+    if (typeof location === "string" && location.trim()) filter.location = new RegExp(`^${escapeRegex(location.trim())}$`, "i");
 
-  res.status(201).json({
-    message: "Event created successfully",
-    event: newEvent,
-  });
+    if (dateFrom || dateTo) {
+      const range = {};
+      const isValidDateOnly = (value) => {
+        if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(`${value}T00:00:00.000Z`);
+        return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+      };
+      if (dateFrom && !isValidDateOnly(dateFrom)) {
+        return res.status(400).json({ message: "dateFrom must use a valid YYYY-MM-DD date" });
+      }
+      if (dateTo && !isValidDateOnly(dateTo)) {
+        return res.status(400).json({ message: "dateTo must use a valid YYYY-MM-DD date" });
+      }
+      if (dateFrom && dateTo && dateFrom > dateTo) return res.status(400).json({ message: "dateFrom must be on or before dateTo" });
+      if (dateFrom) range.$gte = new Date(`${dateFrom}T00:00:00.000Z`);
+      if (dateTo) range.$lte = new Date(`${dateTo}T23:59:59.999Z`);
+      filter.date = range;
+    }
+
+    const events = await Event.find(filter).sort({ date: 1, createdAt: -1 }).lean();
+    res.status(200).json(events);
+  } catch (error) { next(error); }
 }
 
-// PUT /api/events/:id
-function updateEvent(req, res) {
-  const id = Number(req.params.id);
-
-  const index = events.findIndex((event) => event.id === id);
-
-  if (index === -1) {
-    return res.status(404).json({
-      message: "Event not found",
-    });
-  }
-
-  const { title, description, date, time, location } = req.body;
-
-  if (
-    !title?.trim() ||
-    !description?.trim() ||
-    !date?.trim() ||
-    !time?.trim() ||
-    !location?.trim()
-  ) {
-    return res.status(400).json({
-      message: "All event fields are required",
-    });
-  }
-
-  events[index] = {
-    id,
-    title: title.trim(),
-    description: description.trim(),
-    date: date.trim(),
-    time: time.trim(),
-    location: location.trim(),
-  };
-
-  res.status(200).json({
-    message: "Event updated successfully",
-    event: events[index],
-  });
+async function getEventById(req, res, next) {
+  try {
+    if (!validObjectId(req.params.id)) return res.status(400).json({ message: "Invalid event ID" });
+    const event = await Event.findById(req.params.id).lean();
+    if (!event) return res.status(404).json({ message: "Event not found" });
+    res.status(200).json(event);
+  } catch (error) { next(error); }
 }
 
-// DELETE /api/events/:id
-function deleteEvent(req, res) {
-  const id = Number(req.params.id);
-
-  const index = events.findIndex((event) => event.id === id);
-
-  if (index === -1) {
-    return res.status(404).json({
-      message: "Event not found",
+async function createEvent(req, res, next) {
+  try {
+    const validationError = validateEventInput(req.body);
+    if (validationError) return res.status(400).json({ message: validationError });
+    const event = await Event.create({
+      ...eventPayload(req.body),
+      createdBy: req.user._id,
     });
-  }
-
-  const deletedEvent = events[index];
-
-  events = events.filter((event) => event.id !== id);
-
-  res.status(200).json({
-    message: "Event deleted successfully",
-    event: deletedEvent,
-  });
+    const io = req.app.get("io");
+    io.emit("event:created", {
+      message: `A new event has been added: ${event.title}`,
+      event: {
+        _id: event._id,
+        title: event.title,
+        date: event.date,
+        location: event.location,
+      },
+      createdAt: new Date(),
+    });
+    res.status(201).json({
+      message: "Event created successfully",
+      event,
+    });
+  } catch (error) { next(error); }
 }
 
-module.exports = {
-  getEvents,
-  getEventById,
-  createEvent,
-  updateEvent,
-  deleteEvent,
-};
+async function updateEvent(req, res, next) {
+  try {
+    if (!validObjectId(req.params.id)) return res.status(400).json({ message: "Invalid event ID" });
+    const validationError = validateEventInput(req.body);
+    if (validationError) return res.status(400).json({ message: validationError });
+    const event = await Event.findByIdAndUpdate(req.params.id, eventPayload(req.body), { new: true, runValidators: true });
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+    const io = req.app.get("io");
+    io.emit("event:updated", {
+      message: `An event has been updated: ${event.title}`,
+      event: {
+        _id: event._id,
+        title: event.title,
+        date: event.date,
+        location: event.location,
+      },
+      createdAt: new Date(),
+    });
+    res.status(200).json({
+      message: "Event updated successfully",
+      event,
+    });
+  } catch (error) { next(error); }
+}
+
+async function deleteEvent(req, res, next) {
+  try {
+    if (!validObjectId(req.params.id)) return res.status(400).json({ message: "Invalid event ID" });
+    const event = await Event.findByIdAndDelete(req.params.id);
+    if (!event) return res.status(404).json({ message: "Event not found" });
+    // Avoid dangling registration references after an event is deleted.
+    await Registration.deleteMany({ event: event._id });
+    const io = req.app.get("io");
+    io.emit("event:deleted", {
+      message: `An event has been cancelled: ${event.title}`,
+      event: {
+        _id: event._id,
+        title: event.title,
+      },
+      createdAt: new Date(),
+    });
+    res.status(200).json({
+      message: "Event deleted successfully",
+      event,
+    });
+  } catch (error) { next(error); }
+}
+
+module.exports = { getEvents, getEventById, createEvent, updateEvent, deleteEvent };

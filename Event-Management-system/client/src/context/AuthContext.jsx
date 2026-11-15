@@ -1,65 +1,57 @@
-import { useState } from "react";
-import { AuthContext } from "./authContext";
+import { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { getCurrentUser, loginUser, registerUser } from "../services/api.js";
 
-function readStoredUser() {
-  try {
-    const value = localStorage.getItem("eventHubUser");
-    return value ? JSON.parse(value) : null;
-  } catch {
-    return null;
-  }
-}
+export const AuthContext = createContext(null);
 
-function AuthProvider({ children }) {
-  const [user, setUser] = useState(readStoredUser);
+export default function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  function saveUser(loggedInUser) {
-    setUser(loggedInUser);
-    try {
-      localStorage.setItem("eventHubUser", JSON.stringify(loggedInUser));
-    } catch {
-      // Keep the current session active if browser storage is unavailable.
+  useEffect(() => {
+    let active = true;
+    async function restoreSession() {
+      const token = localStorage.getItem("eventHubToken");
+      if (!token) {
+        if (active) setAuthLoading(false);
+        return;
+      }
+      try {
+        const data = await getCurrentUser();
+        if (active) setUser(data.user);
+      } catch {
+        localStorage.removeItem("eventHubToken");
+        if (active) setUser(null);
+      } finally {
+        if (active) setAuthLoading(false);
+      }
     }
-  }
+    restoreSession();
+    return () => { active = false; };
+  }, []);
 
-  function login(email) {
-    const userEmail = typeof email === "string" ? email : email?.email;
-    if (!userEmail) throw new Error("Enter an email address to sign in.");
+  const login = useCallback(async (email, password) => {
+    const data = await loginUser({ email, password });
+    localStorage.setItem("eventHubToken", data.token);
+    setUser(data.user);
+    return data;
+  }, []);
 
-    const loggedInUser = {
-      name: userEmail.split("@")[0],
-      email: userEmail,
-    };
-    saveUser(loggedInUser);
-    return loggedInUser;
-  }
+  const register = useCallback(async (name, email, password) => {
+    const data = await registerUser({ name, email, password });
+    localStorage.setItem("eventHubToken", data.token);
+    setUser(data.user);
+    return data;
+  }, []);
 
-  function register(details) {
-    const userEmail = details?.email;
-    if (!userEmail) throw new Error("Enter an email address to register.");
-
-    const loggedInUser = {
-      name: details.name || userEmail.split("@")[0],
-      email: userEmail,
-    };
-    saveUser(loggedInUser);
-    return loggedInUser;
-  }
-
-  function logout() {
+  const logout = useCallback(() => {
+    localStorage.removeItem("eventHubToken");
     setUser(null);
-    try {
-      localStorage.removeItem("eventHubUser");
-    } catch {
-      // The in-memory session is still cleared if browser storage is unavailable.
-    }
-  }
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, authLoading, login, register, logout }),
+    [user, authLoading, login, register, logout]
   );
-}
 
-export default AuthProvider;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}

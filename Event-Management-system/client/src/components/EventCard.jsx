@@ -1,88 +1,32 @@
-import { useState } from "react";
-import Button from "./Button";
-import useAuth from "../hooks/useAuth";
-import { api } from "../services/api";
+import Button from "./Button.jsx";
 
-function formatDate(value) {
-  if (!value) return "Date to be announced";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(date);
+function formatDate(dateValue) {
+  if (!dateValue) return "Date to be announced";
+  const date = new Date(dateValue);
+  return Number.isNaN(date.getTime()) ? dateValue : date.toLocaleDateString("en-IN", {
+    day: "2-digit", month: "long", year: "numeric", timeZone: "UTC",
+  });
 }
 
-function EventCard({ event, onRegistered }) {
-  const { user } = useAuth();
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const title = event.title || event.name || "Untitled event";
-  const id = event._id || event.id;
-
-  async function register() {
-    if (!id || isRegistered) return;
-    setIsRegistering(true);
-    setError("");
-    setMessage("");
-    try {
-      if (user) {
-        await api.registerForEvent(id);
-        setMessage("You're registered. See you there.");
-      } else {
-        setMessage("Registration saved for this session.");
-      }
-      setIsRegistered(true);
-      onRegistered?.();
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setIsRegistering(false);
-    }
-  }
-
+export default function EventCard({ event, isRegistered = false, onRegister, registering = false, showRegister = true }) {
   return (
-    <article className="flex h-full flex-col rounded-xl border bg-white p-4 shadow-md sm:p-6">
-      <h2 className="break-words text-xl font-bold text-slate-900">{title}</h2>
-      <p className="mt-2 text-slate-600">
-        {event.description || "More details will be announced soon."}
-      </p>
-      <p className="mt-3 text-slate-600">
-        Date: {formatDate(event.date || event.startDate)}
-      </p>
-      <p className="text-slate-600">
-        Location: {event.location || "Location to be announced"}
-      </p>
-      {event.time && <p className="text-slate-600">Time: {event.time}</p>}
-
-      <div className="mt-4 flex flex-col items-start gap-3">
-        <Button
-          className="w-full sm:w-auto"
-          onClick={register}
-          disabled={isRegistering || isRegistered || !id}
-        >
-          {isRegistering
-            ? "Registering..."
-            : isRegistered
-              ? "Registered"
-              : "Register"}
-        </Button>
-        {message && (
-          <p className="font-semibold text-green-600" role="status">
-            {message}
-          </p>
-        )}
-        {error && (
-          <p className="text-sm text-red-600" role="alert">
-            {error}
-          </p>
-        )}
+    <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">Event</span>
+        {isRegistered && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Registered</span>}
       </div>
+      <h2 className="text-xl font-bold text-slate-900">{event.title}</h2>
+      <p className="mt-2 flex-1 whitespace-pre-line text-sm leading-6 text-slate-600">{event.description}</p>
+      <dl className="mt-5 space-y-2 text-sm text-slate-600">
+        <div className="flex gap-2"><dt className="font-semibold text-slate-700">Date:</dt><dd>{formatDate(event.date)}</dd></div>
+        <div className="flex gap-2"><dt className="font-semibold text-slate-700">Time:</dt><dd>{event.time}</dd></div>
+        <div className="flex gap-2"><dt className="font-semibold text-slate-700">Location:</dt><dd>{event.location}</dd></div>
+      </dl>
+      {showRegister && (
+        <Button className="mt-6 w-full" onClick={() => onRegister(event)} disabled={isRegistered || registering}>
+          {registering ? "Registering..." : isRegistered ? "Already Registered" : "Register for Event"}
+        </Button>
+      )}
     </article>
   );
 }
-
-export default EventCard;

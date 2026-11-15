@@ -1,45 +1,27 @@
 import { useEffect } from "react";
+import Button from "./Button.jsx";
 
-function Modal({ isOpen, title, children, onClose }) {
+export default function Modal({ open, title, children, onClose, onConfirm, confirmText = "Confirm", confirmVariant = "danger", busy = false }) {
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!open) return undefined;
     function handleKeyDown(event) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && !busy) onClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [open, onClose, busy]);
 
-  if (!isOpen) return null;
-
+  if (!open) return null;
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4 sm:p-6"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
-    >
-      <section
-        className="my-auto max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 shadow-2xl sm:p-6"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <h2 id="modal-title" className="text-xl font-bold text-slate-900">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-2xl leading-none text-slate-500 hover:text-slate-900"
-            aria-label="Close dialog"
-          >
-            &times;
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="modal-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 id="modal-title" className="text-xl font-bold text-slate-900">{title}</h2>
+        <div className="mt-3 text-sm leading-6 text-slate-600">{children}</div>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant={confirmVariant} onClick={onConfirm} disabled={busy}>{busy ? "Please wait..." : confirmText}</Button>
         </div>
-        <div className="mt-4">{children}</div>
       </section>
     </div>
   );
 }
-
-export default Modal;

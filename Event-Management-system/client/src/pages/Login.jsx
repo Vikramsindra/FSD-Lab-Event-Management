@@ -1,100 +1,44 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import Button from "../components/Button";
-import useAuth from "../hooks/useAuth";
+import useAuth from "../hooks/useAuth.js";
+import Button from "../components/Button.jsx";
 
-function Login() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   function handleChange(event) {
-    const { name, value } = event.target;
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+    setForm((previous) => ({ ...previous, [event.target.name]: event.target.value }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
-    setIsSubmitting(true);
+    if (!form.email.trim() || !form.password) return setError("Enter your email and password.");
     try {
-      await login(formData.email);
-      navigate(location.state?.from?.pathname || "/events", { replace: true });
-    } catch (requestError) {
-      setError(requestError.message);
+      setSubmitting(true);
+      const data = await login(form.email.trim(), form.password);
+      const destination = location.state?.from?.pathname;
+      navigate(destination || (data.user.role === "admin" ? "/admin" : "/events"), { replace: true });
+    } catch (err) {
+      setError(err.message || "Unable to log in.");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   }
 
-  return (
-    <div className="min-h-screen bg-slate-100 px-4 py-10 sm:px-6 sm:py-16">
-      <div className="mx-auto max-w-md rounded-xl bg-white p-5 shadow-md sm:p-8">
-        <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">Login</h1>
-        <p className="mt-2 text-slate-600">
-          Login to manage your event registrations.
-        </p>
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="email" className="mb-1 block font-medium">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter your email"
-              autoComplete="email"
-              required
-              className="w-full rounded-lg border px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="mb-1 block font-medium">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              required
-              className="w-full rounded-lg border px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          {error && (
-            <p className="text-center font-semibold text-red-600" role="alert">
-              {error}
-            </p>
-          )}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
-        <p className="mt-5 text-center text-slate-600">
-          New to EventHub?{" "}
-          <Link className="font-semibold text-indigo-600" to="/register">
-            Create an account
-          </Link>
-        </p>
-      </div>
-    </div>
-  );
+  return <main className="min-h-[calc(100vh-72px)] bg-slate-100 px-4 py-12 sm:px-6"><section className="mx-auto max-w-md rounded-2xl bg-white p-7 shadow-lg sm:p-9">
+    <h1 className="text-3xl font-extrabold text-slate-900">Welcome back</h1><p className="mt-2 text-slate-600">Log in to manage your registrations.</p>
+    <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+      <div><label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold text-slate-700">Email</label><input id="login-email" name="email" type="email" autoComplete="email" value={form.email} onChange={handleChange} required className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="you@example.com" /></div>
+      <div><label htmlFor="login-password" className="mb-1.5 block text-sm font-semibold text-slate-700">Password</label><input id="login-password" name="password" type="password" autoComplete="current-password" value={form.password} onChange={handleChange} required className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Your password" /></div>
+      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      <Button type="submit" disabled={submitting} className="w-full">{submitting ? "Signing in..." : "Log in"}</Button>
+    </form>
+    <p className="mt-6 text-center text-sm text-slate-600">New to EventHub? <Link to="/register" className="font-semibold text-indigo-600 hover:text-indigo-700">Create an account</Link></p>
+  </section></main>;
 }
-
-export default Login;
