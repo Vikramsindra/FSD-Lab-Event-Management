@@ -11,9 +11,16 @@ Welcome to the documentation folder for **EventHub - Full Stack Development Lab*
 
 ---
 
+## Live Application URLs
+
+* **Frontend (Vercel):** [https://fsd-lab-event-management.vercel.app/](https://fsd-lab-event-management.vercel.app/)
+* **Backend Container (Render):** [https://eventhub-backend-container.onrender.com/](https://eventhub-backend-container.onrender.com/)
+
+---
+
 ## Experiment 8 Quick Reference
 
 * **Local Containers:** Run `docker compose up -d` in project root.
 * **GitHub Actions:** `.github/workflows/ci.yml` validates on push.
-* **Backend Live:** `https://eventhub-backend-xhd2.onrender.com`
-* **Frontend:** Configured with `vercel.json` and multi-stage Nginx `Dockerfile`.
+* **Backend Live:** `https://eventhub-backend-container.onrender.com`
+* **Frontend Live:** `https://fsd-lab-event-management.vercel.app`

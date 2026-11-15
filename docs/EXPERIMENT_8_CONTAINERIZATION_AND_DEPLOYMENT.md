@@ -318,7 +318,7 @@ services:
    * `JWT_EXPIRES_IN`: `1d`
    * `CLIENT_ORIGIN`: `*`
 5. Click **Deploy Web Service**.
-6. Deployment URL generated: `https://eventhub-backend-xhd2.onrender.com`.
+6. Deployment URL generated: `https://eventhub-backend-container.onrender.com`.
 7. 📸 **Capture Screenshot 3:** Render dashboard showing status **`Live`** and the service URL.
 
 ---
@@ -330,15 +330,15 @@ services:
    * **Framework Preset:** `Vite`
    * **Root Directory:** Click Edit and select `Event-Management-system/client`.
 4. In **Environment Variables**, add:
-   * `VITE_SOCKET_URL`: `https://eventhub-backend-xhd2.onrender.com`
-   * `VITE_API_URL`: `https://eventhub-backend-xhd2.onrender.com`
+   * `VITE_SOCKET_URL`: `https://eventhub-backend-container.onrender.com`
+   * `VITE_API_URL`: `https://eventhub-backend-container.onrender.com`
 5. Click **Deploy**.
 6. 📸 **Capture Screenshot 4:** Vercel deployment overview showing **Ready (Production)**.
 
 ---
 
 ### Step 5: Verify Live Deployed Application
-1. Click the production link from Vercel (e.g., `https://fsd-lab-event-management.vercel.app`).
+1. Click the production link from Vercel: 👉 [https://fsd-lab-event-management.vercel.app/](https://fsd-lab-event-management.vercel.app/).
 2. Log in, create/browse events, and verify real-time Socket.IO notifications connecting to Render.
 3. 📸 **Capture Screenshot 5:** Full browser window displaying the live online EventHub with the production URL in the address bar.
 
